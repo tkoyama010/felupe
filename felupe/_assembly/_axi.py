@@ -144,5 +144,5 @@ class IntegralFormAxisymmetric(IntegralForm):
 
     def assemble(self, values=None, parallel=False, triu=False, tril=False):
         if values is None:
-            values = self.integrate(parallel=parallel, triu=triu, tril=tril)
-        return self.forms[0].assemble(values)
+            values = self.integrate(parallel=parallel)
+        return self.forms[0].assemble(values, triu=triu, tril=tril)
