@@ -26,7 +26,7 @@ along with Felupe.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from scipy.sparse import bmat, vstack
+from scipy.sparse import bmat, vstack, csr_matrix as sparsematrix
 
 from .._field._base import Field
 from .._field._axi import FieldAxisymmetric
@@ -109,15 +109,28 @@ class IntegralFormMixed:
         if values is None:
             values = [None] * len(self.forms)
 
-        for val, form in zip(values, self.forms):
-            out.append(form.assemble(val, parallel=parallel, triu=triu, tril=tril))
+        for val, form, i, j in zip(values, self.forms, self.i, self.j):
+            if (triu or tril) and i == j:
+                kwargs = {"triu": triu, "tril": tril}
+            else:
+                kwargs = {}
+            out.append(form.assemble(val, parallel=parallel, **kwargs))
 
         if block and self.mode == 2:
             K = np.zeros((self.nv, self.nv), dtype=object)
             for a, (i, j) in enumerate(zip(self.i, self.j)):
-                K[i, j] = out[a]
-                if i != j:
-                    K[j, i] = out[a].T
+                if i == j:
+                    K[i, i] = out[a]
+                else:
+                    if triu:
+                        K[i, j] = out[a]
+                        K[j, i] = sparsematrix(K[i, j].shape[::-1])
+                    elif tril:
+                        K[j, i] = out[a].T
+                        K[i, j] = sparsematrix(K[j, i].shape[::-1])
+                    else:
+                        K[i, j] = out[a]
+                        K[j, i] = out[a].T
 
             return bmat(K).tocsr()
 
